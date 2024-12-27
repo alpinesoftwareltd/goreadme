@@ -53,15 +53,14 @@ func NewChatGPTAssistantClient(model string, credentials ChatGPTCredentials) *Ch
 type ChatGPTService interface {
 	VerifyCredentials() error
 	GetAssistant(id string) (Assistant, error)
-	CreateAssistant(name, description, vectorStoreId string) (string, error)
+	CreateAssistant(name, description, model, vectorStoreId string) (string, error)
 	GetVectorStore(id string) (VectorStore, error)
 	GetModel(model string) (Model, error)
 	CreateVectorStore(name string) (string, error)
-	CreateThread(files []io.Reader) (string, error)
-	RunThread(threadId string) (string, error)
-	UploadFile(file io.Reader) (string, error)
-	GetThreadMessages(threadId string) ([]ThreadMessageContent, error)
-	WaitForRunCompletion(runId string) (ThreadRun, error)
+	UploadFile(filename string, file io.Reader) (string, error)
+	CreateThreadAndRun(assistantId, vectorStoreId string, messages []ThreadMessage) (ThreadRun, error)
+	GetThreadMessages(threadId string) ([]ThreadMessageResponse, error)
+	WaitForRunCompletion(threadId, runId string) (ThreadRun, error)
 }
 
 type ChatGPTAssistantClient struct {
@@ -522,6 +521,19 @@ func (client *ChatGPTAssistantClient) WaitForRunCompletion(threadId, runId strin
 	}
 }
 
+// GetThreadMessages retrieves the messages of a specific thread by its ID.
+// It sends a GET request to the ChatGPT API and returns a slice of ThreadMessageResponse.
+//
+// Parameters:
+//   - threadId: The ID of the thread to retrieve messages from.
+//
+// Returns:
+//   - []ThreadMessageResponse: A slice containing the messages of the thread.
+//   - error: An error object if the request fails or if there is an issue with reading the response.
+//
+// The function handles the following HTTP status codes:
+//   - http.StatusOK: Successfully retrieved the messages.
+//   - Other: Returns a ChatGPTError with the response details.
 func (client *ChatGPTAssistantClient) GetThreadMessages(threadId string) ([]ThreadMessageResponse, error) {
 
 	headers := map[string]string{

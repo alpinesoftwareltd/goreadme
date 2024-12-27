@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -119,19 +120,19 @@ func isAllowedFile(filename string) bool {
 		".go",
 		".html",
 		".java",
-		".jpeg",
-		".jpg",
 		".js",
-		".pdf",
 		".php",
 		".pkl",
-		".pptx",
 		".py",
 		".rb",
 		".tar",
 		".tex",
 		".ts",
 		".webp",
+		".sh",
+		".bash",
+		".zsh",
+		".ps1",
 	}
 
 	fileType := filepath.Ext(filename)
@@ -140,6 +141,19 @@ func isAllowedFile(filename string) bool {
 			return true
 		}
 	}
+
+	// define regex patterns for allowed filenames
+	allowedRegex := []string{
+		`^(?i)dockerfile(\.[a-zA-Z0-9_-]+)?$`,
+	}
+
+	for _, re := range allowedRegex {
+		exp := regexp.MustCompile(re)
+		if exp.MatchString(filepath.Base(filename)) {
+			return true
+		}
+	}
+
 	return false
 }
 
@@ -155,27 +169,40 @@ func isAllowedFile(filename string) bool {
 // Note:
 //   - If there is an error opening or reading a file, the function will silently ignore the error
 //     and continue processing the next file.
-func getFilesToUpload(path string) map[string]io.Reader {
+func getFilesToUpload(path string) (map[string]io.Reader, error) {
 	files := map[string]io.Reader{}
 
-	paths, _ := filepath.Glob(path + "/**/*")
-	for _, f := range paths {
-		if !isAllowedFile(f) {
-			continue
+	err := filepath.WalkDir(path, func(f string, d os.DirEntry, e error) error {
+		// if entry is a directory, skip
+		if d.IsDir() {
+			return nil
 		}
+		// if entry is not in the allowed file types, skip
+		if !isAllowedFile(f) {
+			return nil
+		}
+
 		log.Debug(fmt.Sprintf("adding file %s", f))
+
 		file, err := os.OpenFile(f, os.O_RDONLY, 0644)
 		if err != nil {
 			log.Warn(fmt.Sprintf("error opening file %s: %+v", f, err))
-			continue
+			return nil
 		}
 		defer file.Close()
 
 		content, _ := io.ReadAll(file)
 		buffer := bytes.NewBuffer(content)
 		files[f] = buffer
+
+		return nil
+	})
+
+	if err != nil {
+		return files, err
 	}
-	return files
+
+	return files, nil
 }
 
 // combineFiles takes a map of filenames to io.Reader objects and combines their contents

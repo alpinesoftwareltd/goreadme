@@ -262,7 +262,12 @@ func GenerateCLICommand(ctx context.Context, cmd *cli.Command) error {
 
 	// get all files that need to be uploaded and group
 	// by file extension/type.
-	files := getFilesToUpload(target)
+	files, err := getFilesToUpload(target)
+	if err != nil {
+		log.Debug(fmt.Sprintf("error reading source code files: %+v", err))
+		return cli.Exit("error generating README", 1)
+	}
+
 	log.Debug(fmt.Sprintf("found %d files to upload", len(files)))
 	grouped := groupFilesByExtension(files)
 

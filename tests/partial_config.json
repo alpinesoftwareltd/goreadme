@@ -1,0 +1,5 @@
+{
+    "modelVersion": "test-model",
+    "vectorStoreId": "vectorstore_test-id",
+    "assistantId": "assistant_test-id"
+}

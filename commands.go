@@ -27,7 +27,8 @@ and ends with
 ### FILE END [filepath]
 
 where [filepath] gives the path of the original source code file. Treat the code within
-each file block as a separate file for the purposes of the README.
+each file block as a separate file for the purposes of the README. Some files that have extensions
+that are not supported for ChatGPT retrieval (such as .vue files) are combined into a .[ext].txt file.
 
 Please do not include any references to the combined_source_files.[ext] file containing the
 combined source code. Only reference the original source code files using the file names provided.
@@ -371,5 +372,18 @@ func GenerateCLICommand(ctx context.Context, cmd *cli.Command) error {
 		log.Debug(fmt.Sprintf("error writing file content: %+v", err))
 		return cli.Exit("error generating README", 1)
 	}
+
+	spinner.Prefix = "Deleting files from assistant "
+	deleteErrors := deleteFiles(client, fileIds)
+	if len(deleteErrors) > 0 {
+		for _, e := range deleteErrors {
+			log.Debug(fmt.Sprintf("error deleting file: %+v", e))
+			chatGPTError := e.(ChatGPTError)
+			log.Debug(fmt.Sprintf("error response: %+v", chatGPTError.Body))
+		}
+		log.Debug(fmt.Sprintf("found %d errors during file deletion", len(errors)))
+		return cli.Exit("error generating README", 1)
+	}
+
 	return nil
 }

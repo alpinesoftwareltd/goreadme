@@ -23,8 +23,6 @@
 go.work
 go.work.sum
 
-!Dockerfile.test
-
-bin
-
 .DS_Store
+
+playground

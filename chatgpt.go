@@ -58,6 +58,7 @@ type ChatGPTService interface {
 	GetModel(model string) (Model, error)
 	CreateVectorStore(name string) (string, error)
 	UploadFile(filename string, file io.Reader) (string, error)
+	DeleteFile(filename string) error
 	CreateThreadAndRun(assistantId, vectorStoreId string, messages []ThreadMessage) (ThreadRun, error)
 	GetThreadMessages(threadId string) ([]ThreadMessageResponse, error)
 	WaitForRunCompletion(threadId, runId string) (ThreadRun, error)
@@ -469,6 +470,21 @@ func (client *ChatGPTAssistantClient) UploadFile(filename string, content io.Rea
 
 	default:
 		return "", NewChatGPTError(response)
+	}
+}
+
+func (client *ChatGPTAssistantClient) DeleteFile(id string) error {
+
+	url := fmt.Sprintf("%s/files/%s", APIUrl, id)
+	response, err := client.ExecuteChatGPTRequest(http.MethodDelete, url, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	if response.StatusCode != 200 {
+		return NewChatGPTError(response)
+	} else {
+		return nil
 	}
 }
 

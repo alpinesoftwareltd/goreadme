@@ -158,11 +158,26 @@ func TestIsAllowedFile(t *testing.T) {
 			filename: "example.json",
 			want:     false,
 		},
+		{
+			name:     "disallowed node modules file",
+			filename: "app/node_modules/something.js",
+			want:     false,
+		},
+		{
+			name:     "disallowed pycache",
+			filename: "app/__pycache__/something.py",
+			want:     false,
+		},
+		{
+			name:     "allowed explicit mapping",
+			filename: "test.vue",
+			want:     true,
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got := isAllowedFile(test.filename)
+			_, got := isAllowedFile(test.filename)
 			if got != test.want {
 				t.Errorf("got: %v, want: %v", got, test.want)
 			}

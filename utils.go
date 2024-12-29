@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -82,10 +83,11 @@ func uploadFiles(client *ChatGPTAssistantClient, files map[string]io.Reader) ([]
 	fileIds := []string{}
 
 	semaphore := semaphore.NewWeighted(5)
+
 	var wg sync.WaitGroup
+	wg.Add(len(files))
 
 	for filename, filecontent := range files {
-		wg.Add(1)
 
 		if err := semaphore.Acquire(context.Background(), 1); err != nil {
 			errors = append(errors, err)
@@ -109,9 +111,53 @@ func uploadFiles(client *ChatGPTAssistantClient, files map[string]io.Reader) ([]
 	return fileIds, errors
 }
 
+func deleteFiles(client *ChatGPTAssistantClient, fileIds []string) []error {
+	errors := []error{}
+
+	semaphore := semaphore.NewWeighted(5)
+
+	var wg sync.WaitGroup
+	wg.Add(len(fileIds))
+
+	for _, fid := range fileIds {
+
+		if err := semaphore.Acquire(context.Background(), 1); err != nil {
+			errors = append(errors, err)
+			continue
+		}
+
+		go func(id string) {
+			defer wg.Done()
+			defer semaphore.Release(1)
+
+			if err := client.DeleteFile(id); err != nil {
+				errors = append(errors, err)
+			}
+		}(fid)
+	}
+	wg.Wait()
+
+	return errors
+}
+
 // isAllowedFile checks if the given filename has an allowed extension.
 // It returns true if the filename ends with one of the allowed extensions, otherwise false.
-func isAllowedFile(filename string) bool {
+func isAllowedFile(filename string) (string, bool) {
+
+	blackListedRegex := []string{
+		`(^|[\/])node_modules([\/]|$)`,
+		`(^|[\/])__pycache__([\/]|$)`,
+		`(^|[\/])dist([\/]|$)`,
+		`(^|[\/])bin([\/]|$)`,
+	}
+
+	for _, e := range blackListedRegex {
+		exp := regexp.MustCompile(e)
+		if exp.MatchString(filename) {
+			return filename, false
+		}
+	}
+
 	allowedExtensions := []string{
 		".c",
 		".cpp",
@@ -127,21 +173,33 @@ func isAllowedFile(filename string) bool {
 		".tar",
 		".tex",
 		".ts",
-		".webp",
 		".sh",
 		".bash",
 		".zsh",
 		".ps1",
 	}
 
-	fileType := filepath.Ext(filename)
-	for _, ext := range allowedExtensions {
-		if fileType == ext {
-			return true
-		}
+	renames := map[string]string{
+		".vue": ".vue.txt",
+		".jsx": ".js",
+		".tsx": ".tx",
 	}
 
-	return false
+	fileType := filepath.Ext(filename)
+	mapping, ok := renames[fileType]
+	if ok {
+		mapped := strings.Replace(filename, fileType, mapping, 1)
+		return mapped, true
+	}
+
+	for _, ext := range allowedExtensions {
+		if fileType == ext {
+			return filename, true
+		}
+
+	}
+
+	return filename, false
 }
 
 // getFilesToUpload reads all files in the specified directory and returns a slice of io.Reader
@@ -165,10 +223,10 @@ func getFilesToUpload(path string) (map[string]io.Reader, error) {
 			return nil
 		}
 		// if entry is not in the allowed file types, skip
-		if !isAllowedFile(f) {
+		mappedFilename, allowed := isAllowedFile(f)
+		if !allowed {
 			return nil
 		}
-
 		log.Debug(fmt.Sprintf("adding file %s", f))
 
 		file, err := os.OpenFile(f, os.O_RDONLY, 0644)
@@ -180,7 +238,7 @@ func getFilesToUpload(path string) (map[string]io.Reader, error) {
 
 		content, _ := io.ReadAll(file)
 		buffer := bytes.NewBuffer(content)
-		files[f] = buffer
+		files[mappedFilename] = buffer
 		return nil
 	})
 

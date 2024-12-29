@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -142,18 +141,6 @@ func isAllowedFile(filename string) bool {
 		}
 	}
 
-	// define regex patterns for allowed filenames
-	allowedRegex := []string{
-		`^(?i)dockerfile(\.[a-zA-Z0-9_-]+)?$`,
-	}
-
-	for _, re := range allowedRegex {
-		exp := regexp.MustCompile(re)
-		if exp.MatchString(filepath.Base(filename)) {
-			return true
-		}
-	}
-
 	return false
 }
 
@@ -194,15 +181,10 @@ func getFilesToUpload(path string) (map[string]io.Reader, error) {
 		content, _ := io.ReadAll(file)
 		buffer := bytes.NewBuffer(content)
 		files[f] = buffer
-
 		return nil
 	})
 
-	if err != nil {
-		return files, err
-	}
-
-	return files, nil
+	return files, err
 }
 
 // combineFiles takes a map of filenames to io.Reader objects and combines their contents
@@ -220,13 +202,13 @@ func combineFiles(files map[string]io.Reader) io.Reader {
 	var combinedFiles bytes.Buffer
 
 	for path, content := range files {
-		combinedFiles.WriteString(fmt.Sprintf("### %s\n\n", path))
+		combinedFiles.WriteString(fmt.Sprintf("### FILE START %s\n\n", path))
 		if _, err := combinedFiles.ReadFrom(content); err != nil {
 			log.Warn(fmt.Sprintf("error reading content from file %s: %+v", path, err))
 			return &combinedFiles
 		}
 
-		combinedFiles.WriteString("\n\n")
+		combinedFiles.WriteString(fmt.Sprintf("\n\n### FILE END %s\n\n", path))
 	}
 
 	return &combinedFiles
@@ -253,6 +235,5 @@ func groupFilesByExtension(files map[string]io.Reader) map[string]map[string]io.
 		}
 		groupedFiles[ext][filename] = content
 	}
-
 	return groupedFiles
 }

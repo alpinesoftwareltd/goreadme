@@ -149,11 +149,6 @@ func TestIsAllowedFile(t *testing.T) {
 			want:     true,
 		},
 		{
-			name:     "allowed file in whitelist",
-			filename: "Dockerfile.test",
-			want:     true,
-		},
-		{
 			name:     "disallowed file csv",
 			filename: "data.csv",
 			want:     false,
@@ -223,29 +218,33 @@ func TestCombineFiles(t *testing.T) {
 	combined := combineFiles(files)
 	bytesContent, err := io.ReadAll(combined)
 	if err != nil {
-		if err != nil {
-			t.Fatalf("error reading combined file: %+v", err)
-		}
+		t.Fatalf("error reading combined file: %+v", err)
 	}
 
 	stringContent := string(bytesContent)
-	expected := `### tests/src/main.py
+	expected := `### FILE START tests/src/main.py
 
 
 def foo():
     return "bar"
 
 
-### tests/src/nested/__init__.py
+### FILE END tests/src/main.py
+
+### FILE START tests/src/nested/__init__.py
 
 
 
-### tests/src/nested/example.py
+### FILE END tests/src/nested/__init__.py
+
+### FILE START tests/src/nested/example.py
 
 
 def some_example_function(bar: str):
     return "foo"
 
+
+### FILE END tests/src/nested/example.py
 
 `
 	if stringContent != expected {

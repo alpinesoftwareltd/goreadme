@@ -15,15 +15,24 @@ import (
 )
 
 const (
-	Query = `Please generate a README for the attached source code files.
-All of the files for a given filetype have been combined into a single file called combined.[ext].
-Each file within the combined file is separated by a \n\n delimiter. The original file paths are
-included at the top of each appended content block in the format ### [filepath]. Treat the code between
-each set of ### [filepath] as a separate file.
+	Query = `Please generate a README for the attached source code. All of the files for a
+given file extension have been combined into a single file called combined_source_files.[ext]
+where ext is the file extension. The combined file is organized into a set of file blocks,
+where each block starts with
 
-Please do not include any references to the combined.[ext] file containing the combined source
-code. Only reference the original source code files using the file names provided. Ensure that
-context is provided that explains the purpose of the code and how it can be used where possible.`
+### FILE START [filepath]
+
+and ends with
+
+### FILE END [filepath]
+
+where [filepath] gives the path of the original source code file. Treat the code within
+each file block as a separate file for the purposes of the README.
+
+Please do not include any references to the combined_source_files.[ext] file containing the
+combined source code. Only reference the original source code files using the file names provided.
+Ensure that context is provided that explains the purpose of the code and how it can be used
+where possible.`
 )
 
 func ConfigureCLICommand(ctx context.Context, cmd *cli.Command) error {
@@ -277,11 +286,11 @@ func GenerateCLICommand(ctx context.Context, cmd *cli.Command) error {
 	for ext, files := range grouped {
 		combined := combineFiles(files)
 		log.Debug(fmt.Sprintf("combined %d files of type %s", len(files), ext))
-		filename := "combined" + ext
+		filename := "combined_source_files" + ext
 		toUpload[filename] = combined
 	}
 
-	spinner.Prefix = fmt.Sprintf("Analyzing %d files", len(files))
+	spinner.Prefix = fmt.Sprintf("Analyzing %d files", len(toUpload))
 	// upload files to ChatGPT assistant
 	client := NewChatGPTAssistantClient(config.ModelVersion, ChatGPTCredentials{
 		Secret: config.AccessToken,

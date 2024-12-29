@@ -42,16 +42,6 @@ func main() {
 						Value: ".",
 						Usage: "target directory containing source code for README generation",
 					},
-					&cli.StringFlag{
-						Name:  "output",
-						Value: "README.md",
-						Usage: "Output path for generated README",
-					},
-					&cli.BoolFlag{
-						Name:  "overwrite",
-						Value: false,
-						Usage: "Overwrite existing README file",
-					},
 				},
 				Action: GenerateCLICommand,
 			},
